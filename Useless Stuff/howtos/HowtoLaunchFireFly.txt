@@ -1,0 +1,24 @@
+How to Launch FireFly
+
+Follow the instructions below to set up and launch FireFly using an online HTML compiler.
+
+---
+
+Step 1: Open an Online HTML Compiler
+
+Go to one of the following unblocked HTML compilers:
+
+* [OnlineGDB HTML Compiler](https://www.onlinegdb.com/online_html_compiler)
+* [Great Learning HTML Editor](https://www.mygreatlearning.com/blog/html-editor-tool/)
+* [Tutorialspoint Online HTML Editor](https://www.tutorialspoint.com/compilers/online-html-editor.htm)
+* [GeeksforGeeks Online HTML Editor](https://ide.geeksforgeeks.org/online-html-editor)
+
+> **Note:** If none of the links above work on your network, search for `"html online compiler"` in your web browser.
+
+---
+
+Step 2: Copy and Paste the HTML Code
+
+Copy the HTML code below and paste it into the editor's HTML tab (usually named `index.html`):
+
+<!DOCTYPE html> <html> <head> <title>dud</title> <style> html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; } #game { width: 100%; height: 100%; border: none; } </style> </head> <body> <iframe id="game"></iframe> <script> const html = atob("PCFET0NUWVBFIGh0bWw+IDxodG1sPiA8aGVhZD4gPG1ldGEgY2hhcnNldD0iVVRGLTgiPiA8dGl0bGU+TGF1bmNoZXI8L3RpdGxlPiA8L2hlYWQ+IDxib2R5PiA8c2NyaXB0PiBjb25zdCBSbWQgPSAiaHR0cHM6Ly9jZG4uanNkZWxpdnIubmV0L2doL1gtTk9CRVIvRmlyZUZMeV9WMC41YUBtYWluL2ZldGNoaW5nRW5naW5lL21kLmh0bWwiOyBhc3luYyBmdW5jdGlvbiBsYXVuY2hSbWQoKSB7IHRyeSB7IGNvbnN0IG5ld1RhYiA9IHdpbmRvdy5vcGVuKCJhYm91dDpibGFuayIsICJfYmxhbmsiKTsgaWYgKCFuZXdUYWIpIHsgZG9jdW1lbnQuYm9keS5pbm5lckhUTUwgPSAiPGgyPlBvcHVwIGJsb2NrZWQhPC9oMj48cD5QbGVhc2UgYWxsb3cgcG9wdXBzIGZvciB0aGlzIHNpdGUuPC9wPiI7IHJldHVybjsgfSBjb25zdCByZXNwb25zZSA9IGF3YWl0IGZldGNoKFJtZCk7IGlmICghcmVzcG9uc2Uub2spIHsgdGhyb3cgbmV3IEVycm9yKGBIVFRQICR7cmVzcG9uc2Uuc3RhdHVzfWApOyB9IGNvbnN0IGh0bWwgPSBhd2FpdCByZXNwb25zZS50ZXh0KCk7IG5ld1RhYi5RvY3VtZW50Lm9wZW4oKTsgbmV3VGFiLmRvY3VtZW50LndyaXRlKGh0bWwpOyBuZXdUYWIuZG9jdW1lbnQuY2xvc2UoKTsgfSBjYXRjaCAoZXJyb3IpIHsgY29uc29sZS5lcnJvcihlcnJvcik7IGRvY3VtZW50LmJvZHkuaW5uZXJIVE1MID0gYCA8aDI+RmFpbGVkIHRvIGxhdW5jaDwvaDI+IDxwPiR7ZXJyb3IubWVzc2FnZX08L3A+IGA7IH0gfSB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcigibG9hZCIsIGxhdW5jaFJtZCk7IDwvc2NyaXB0PiA8L2JvZHk+IDwvaHRtbD+"); const iframe = document.getElementById("game"); iframe.srcdoc = html; </script> </body> </html>
