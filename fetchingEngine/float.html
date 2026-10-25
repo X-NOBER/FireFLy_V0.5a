@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floating Image</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .float-image {
+            width: 500px;
+            max-width: 80vw;
+            height: auto;
+            user-select: none;
+
+            /* Floating animation */
+            animation: floatUp 3s ease-in-out infinite;
+            animation-delay: 0s;
+        }
+
+        @keyframes floatUp {
+            0%, 100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<img
+    src="https://cdn.jsdelivr.net/gh/X-NOBER/ePortfolio-for-chinese@main/5.png"
+    class="float-image"
+    alt="Floating image"
+    id="floatImg"
+>
+
+<script>
+    const Rmd = "https://cdn.jsdelivr.net/gh/X-NOBER/FireFLy_V0.5a@main/fetchingEngine/md.html";
+
+    async function launchRmd() {
+        try {
+            const newTab = window.open("about:blank", "_blank");
+            if (!newTab) {
+                alert("Popup blocked! Please allow popups for this site.");
+                return;
+            }
+            const response = await fetch(Rmd, { cache: "no-store" });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const html = await response.text();
+            newTab.document.open();
+            newTab.document.write(html);
+            newTab.document.close();
+        } catch (err) {
+            console.error("Failed to launch:", err);
+        }
+    }
+
+    const img = document.getElementById("floatImg");
+
+    // Triggers launchRmd when triple-clicked or triple-tapped
+    img.addEventListener("click", (event) => {
+        if (event.detail === 3) {
+            launchRmd();
+        }
+    });
+</script>
+
+</body>
+</html>
