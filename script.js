@@ -16,15 +16,15 @@
 // just flashes on a fast load.
 const LoadingScreen = (() => {
   const FOLDER = 'loading images';
-  const EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
-  const BATCH_SIZE = 6; // numbers probed in parallel per round
-  const MAX_PROBE = 500; // hard ceiling so a misconfigured folder can't probe forever
+  const EXTENSIONS = ['jpg', 'jpeg', 'webp', 'png'];
+  const BATCH_SIZE = 8; // numbers probed in parallel per round
+  const MAX_PROBE = 20; // folder is numbered; keep this small so Chromebooks don't probe forever
   const FADE_MS = 250; // must match .loading-img's opacity transition duration in main.css
   const ZOOM_MS = 600; // must match .loading-img's transform transition duration in main.css
   const HOLD_MS = 900; // how long a fully zoomed-in frame sits before the next cycle
   const CYCLE_MS = FADE_MS + ZOOM_MS + HOLD_MS;
-  const MIN_VISIBLE_MS = 1000 + Math.random() * 9000; // random floor, 1s-10s, picked once per load
-  const MAX_WAIT_MS = 29000; // safety net if loadGames() ever hangs
+  const MIN_VISIBLE_MS = 700 + Math.random() * 800; // short floor so the app doesn't sit on the splash
+  const MAX_WAIT_MS = 12000; // safety net if loadGames() ever hangs
 
   const screenEl = document.getElementById('loadingScreen');
   const imgEl = document.getElementById('loadingImg');
@@ -421,14 +421,12 @@ function activateTab(tabName) {
     panel.classList.toggle('is-active', panel.id === `panel-${tabName}`);
   });
 
-  if (tabName === 'home') {
+  if (tabName === 'home' && homeFeaturedGamesEl && !homeFeaturedGamesEl.querySelector('.game-card')) {
     renderFeaturedGames();
   }
 
-  if (tabName === 'games' || tabName === 'home') {
-    requestAnimationFrame(() => {
-      loadCoversInView(document.getElementById(`panel-${tabName}`));
-    });
+  if (tabName === 'games') {
+    showGamesTab();
   }
 }
 
@@ -445,10 +443,6 @@ jumpCards.forEach((card) => {
 // ============================================================
 
 const THEMES = ['ember', 'shark-blue', 'blank'];
-const THEME_WALLPAPERS = [
-  'DefaultWallpaper.jpeg',
-  'Shark-blueWallpaper.jpg',
-];
 
 let pendingTheme = null;
 let themeFadeTimer = null;
@@ -505,11 +499,6 @@ themeOpts.forEach((opt) => {
   setTheme(THEMES.includes(saved) ? saved : 'ember', { animate: false });
 })();
 
-THEME_WALLPAPERS.forEach((src) => {
-  const img = new Image();
-  img.src = src;
-});
-
 // ============================================================
 // Time formatting
 // ============================================================
@@ -536,11 +525,8 @@ function makeTrackRow(track, indexInList, { showAdd = true } = {}) {
   row.innerHTML = `
     <span class="track-index">${indexInList + 1}</span>
     <span class="track-play-icon">
-      ${
-        isCurrentTrack && state.isPlaying
-          ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>'
-          : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'
-      }
+      <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
     </span>
     <span class="track-art">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18V6l11-2v12" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.6"/><circle cx="17.5" cy="16" r="2.6"/></svg>
@@ -592,7 +578,8 @@ function renderPhonkList() {
 
 function renderHomeRecent() {
   homeRecentListEl.innerHTML = '';
-  LIBRARY.forEach((track, i) => {
+  const recent = LIBRARY.slice(-8);
+  recent.forEach((track, i) => {
     homeRecentListEl.appendChild(makeTrackRow(track, i, { showAdd: false }));
   });
 }
@@ -609,68 +596,8 @@ function pickRandomGames(list, count) {
   return picks;
 }
 
-const COVER_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-const coverObservers = new Map();
-
-function onCoverIntersect(entries) {
-  entries.forEach((entry) => {
-    const img = entry.target;
-    const realSrc = img.dataset.src;
-    if (!realSrc) return;
-    if (entry.isIntersecting) {
-      if (img.getAttribute('src') !== realSrc) img.src = realSrc;
-    } else if (img.getAttribute('src') !== COVER_PLACEHOLDER) {
-      img.src = COVER_PLACEHOLDER;
-    }
-  });
-}
-
-function observeCover(img, src, root) {
-  img.dataset.src = src || COVER_PLACEHOLDER;
-  img.src = COVER_PLACEHOLDER;
-  img.alt = '';
-  img.decoding = 'async';
-  let observer = coverObservers.get(root);
-  if (!observer) {
-    observer = new IntersectionObserver(onCoverIntersect, {
-      root,
-      rootMargin: '360px 0px',
-      threshold: 0,
-    });
-    coverObservers.set(root, observer);
-  }
-  observer.observe(img);
-}
-
-function resetCoverObserver(root) {
-  const observer = coverObservers.get(root);
-  if (observer) {
-    observer.disconnect();
-    coverObservers.delete(root);
-  }
-}
-
-function loadCoversInView(root) {
-  if (!root) return;
-  const rootRect = root.getBoundingClientRect();
-  const pad = 360;
-  root.querySelectorAll('img[data-src]').forEach((img) => {
-    const r = img.getBoundingClientRect();
-    const visible = r.bottom >= rootRect.top - pad && r.top <= rootRect.bottom + pad;
-    const realSrc = img.dataset.src;
-    if (!realSrc) return;
-    if (visible) {
-      if (img.getAttribute('src') !== realSrc) img.src = realSrc;
-    } else if (img.getAttribute('src') !== COVER_PLACEHOLDER) {
-      img.src = COVER_PLACEHOLDER;
-    }
-  });
-}
-
 function renderFeaturedGames() {
   if (!homeFeaturedGamesEl) return;
-  const homePanel = document.getElementById('panel-home');
-  resetCoverObserver(homePanel);
   homeFeaturedGamesEl.innerHTML = '';
 
   if (!games.length) {
@@ -682,23 +609,7 @@ function renderFeaturedGames() {
   }
 
   pickRandomGames(games, HOME_FEATURED_COUNT).forEach((game) => {
-    const card = document.createElement('div');
-    card.className = 'game-card' + (compressedMode ? ' compact' : '');
-
-    if (compressedMode) {
-      card.innerHTML = `<div class="game-card-name"></div>`;
-    } else {
-      const img = document.createElement('img');
-      observeCover(img, game.cover || COVER_PLACEHOLDER, homePanel);
-      card.appendChild(img);
-      const name = document.createElement('div');
-      name.className = 'game-card-name';
-      card.appendChild(name);
-    }
-
-    card.querySelector('.game-card-name').textContent = game.name;
-    card.addEventListener('click', () => openGame(game));
-    homeFeaturedGamesEl.appendChild(card);
+    homeFeaturedGamesEl.appendChild(makeGameCard(game, -1, { bindClick: true, compact: false }));
   });
 }
 
@@ -714,6 +625,15 @@ function refreshAllLists() {
   renderMusicList();
   renderPhonkList();
   renderHomeRecent();
+  highlightPlayingTracks();
+}
+
+function highlightPlayingTracks() {
+  const id = state.queue[state.queueIndex]?.id;
+  document.querySelectorAll('.track-row').forEach((row) => {
+    row.classList.toggle('is-playing', row.dataset.trackId === id);
+  });
+  document.documentElement.classList.toggle('is-audio-playing', state.isPlaying);
 }
 
 // ============================================================
@@ -752,7 +672,7 @@ function loadTrackAtIndex(index, { autoplay = true } = {}) {
     });
   }
 
-  refreshAllLists();
+  highlightPlayingTracks();
 }
 
 function playTrackById(trackId, { fromLibrary = false } = {}) {
@@ -848,7 +768,7 @@ function updatePlayButtonUI() {
   playBtn.classList.toggle('is-playing', state.isPlaying);
   playBtn.title = state.isPlaying ? 'Pause' : 'Play';
   updatePlayerRail();
-  refreshAllLists();
+  highlightPlayingTracks();
 }
 
 function updatePlayerRail() {
@@ -888,7 +808,14 @@ audioEl.addEventListener('pause', () => {
   updatePlayButtonUI();
 });
 
-audioEl.addEventListener('timeupdate', updateProgressUI);
+let progressRaf = 0;
+audioEl.addEventListener('timeupdate', () => {
+  if (progressRaf) return;
+  progressRaf = requestAnimationFrame(() => {
+    progressRaf = 0;
+    updateProgressUI();
+  });
+});
 audioEl.addEventListener('loadedmetadata', updateProgressUI);
 
 audioEl.addEventListener('ended', () => {
@@ -996,6 +923,9 @@ let games = [];
 let visibleGames = [];
 let currentGame = null;
 let compressedMode = localStorage.getItem('compressedMode') === 'true';
+let virtualRange = { start: -1, end: -1, cols: 0 };
+let virtualRaf = 0;
+let virtualForce = false;
 
 // ============================================================
 // Init
@@ -1042,11 +972,14 @@ function parseGameList(text) {
 
 async function loadGames() {
   const allGames = [];
+  const [zonesResult, xadenResult, abminnResult] = await Promise.allSettled([
+    fetch(ZONES_URL).then((r) => r.json()),
+    fetch(XADEN_JSON).then((r) => r.json()),
+    fetch(ABMINN_LIST).then((r) => r.text()),
+  ]);
 
-  try {
-    const zones = await fetch(ZONES_URL).then((r) => r.json());
-
-    zones.forEach((game) => {
+  if (zonesResult.status === 'fulfilled') {
+    zonesResult.value.forEach((game) => {
       allGames.push({
         name: game.name,
         cover: game.cover
@@ -1055,14 +988,12 @@ async function loadGames() {
         url: game.url.replace('{HTML_URL}', HTML_BASE)
       });
     });
-  } catch (err) {
-    console.error('Failed to load FROG zones', err);
+  } else {
+    console.error('Failed to load FROG zones', zonesResult.reason);
   }
 
-  try {
-    const xadenGames = await fetch(XADEN_JSON).then((r) => r.json());
-
-    xadenGames.forEach((game) => {
+  if (xadenResult.status === 'fulfilled') {
+    xadenResult.value.forEach((game) => {
       allGames.push({
         name: game.name,
         cover: game.cover,
@@ -1070,40 +1001,160 @@ async function loadGames() {
         source: 'xaden'
       });
     });
-  } catch (err) {
-    console.error('Failed to load Xaden games', err);
+  } else {
+    console.error('Failed to load Xaden games', xadenResult.reason);
   }
 
-  try {
-    const text = await fetch(ABMINN_LIST).then((r) => r.text());
-    const names = parseGameList(text);
-
-    names.forEach((name) => {
+  if (abminnResult.status === 'fulfilled') {
+    parseGameList(abminnResult.value).forEach((name) => {
       allGames.push({
         name,
         cover: ABMINN_IMAGES + encodeURIComponent(name) + '.png',
         url: ABMINN_BASE + encodeURIComponent(name) + '/index.html'
       });
     });
-  } catch (err) {
-    console.error('Failed to load ABMINN games', err);
+  } else {
+    console.error('Failed to load ABMINN games', abminnResult.reason);
   }
 
-  games = allGames
-    .filter((game) => game.name && !game.name.startsWith('[!]'))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  games = uniqueGames(
+    allGames
+      .filter((game) => game.name && !game.name.startsWith('[!]'))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  );
 
-  renderGames(games);
   renderFeaturedGames();
+  if (document.getElementById('panel-games')?.classList.contains('is-active')) {
+    showGamesTab();
+  }
+}
+
+function uniqueGames(list) {
+  const seen = new Set();
+  const out = [];
+  for (const game of list) {
+    const key = game.name.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(game);
+  }
+  return out;
+}
+
+const GAME_GAP = 8;
+const GAME_MIN_W = 170;
+const GAME_MIN_W_COMPACT = 140;
+const GAME_ROW_BUFFER = 2;
+
+function makeGameCard(game, index, { bindClick = false, compact = compressedMode } = {}) {
+  const card = document.createElement('div');
+  card.className = 'game-card' + (compact ? ' compact' : '');
+  if (index >= 0) card.dataset.index = String(index);
+
+  if (!compact) {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.decoding = 'async';
+    img.loading = 'lazy';
+    if (game.cover) img.src = game.cover;
+    card.appendChild(img);
+  }
+
+  const name = document.createElement('div');
+  name.className = 'game-card-name';
+  name.textContent = game.name;
+  card.appendChild(name);
+
+  if (bindClick) {
+    card.addEventListener('click', () => openGame(game));
+  }
+
+  return card;
+}
+
+function gameCardMetrics() {
+  const width = gameListEl.clientWidth || 1;
+  const minW = compressedMode ? GAME_MIN_W_COMPACT : GAME_MIN_W;
+  const cols = Math.max(1, Math.floor((width + GAME_GAP) / (minW + GAME_GAP)));
+  const cardW = (width - GAME_GAP * (cols - 1)) / cols;
+  const imgH = compressedMode ? 0 : cardW * (9 / 16);
+  const nameH = compressedMode ? 42 : 40;
+  const cardH = imgH + nameH;
+  return { cols, cardH, rowStride: cardH + GAME_GAP };
+}
+
+function ensureGameGrid() {
+  if (gameListEl.querySelector('.game-grid-window')) return;
+  gameListEl.className = 'game-grid-host';
+  gameListEl.replaceChildren();
+  const sizer = document.createElement('div');
+  sizer.className = 'game-grid-sizer';
+  const windowEl = document.createElement('div');
+  windowEl.className = 'game-grid game-grid-window';
+  gameListEl.append(sizer, windowEl);
+}
+
+function paintVirtualGames(force = false) {
+  if (!visibleGames.length || !gameListEl) return;
+
+  ensureGameGrid();
+  const panel = document.getElementById('panel-games');
+  const sizer = gameListEl.querySelector('.game-grid-sizer');
+  const windowEl = gameListEl.querySelector('.game-grid-window');
+  windowEl.classList.toggle('compact', compressedMode);
+
+  const { cols, cardH, rowStride } = gameCardMetrics();
+  const total = visibleGames.length;
+  const rows = Math.ceil(total / cols);
+  sizer.style.height = `${Math.max(0, rows * cardH + Math.max(0, rows - 1) * GAME_GAP)}px`;
+  windowEl.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+
+  const listRect = gameListEl.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const viewTop = Math.max(0, panelRect.top - listRect.top);
+  const viewBottom = Math.max(viewTop, panelRect.bottom - listRect.top);
+  const startRow = Math.max(0, Math.floor(viewTop / rowStride) - GAME_ROW_BUFFER);
+  const endRow = Math.min(rows, Math.ceil(viewBottom / rowStride) + GAME_ROW_BUFFER);
+  const start = startRow * cols;
+  const end = Math.min(total, endRow * cols);
+
+  windowEl.style.transform = `translate3d(0, ${startRow * rowStride}px, 0)`;
+
+  if (
+    !force &&
+    virtualRange.start === start &&
+    virtualRange.end === end &&
+    virtualRange.cols === cols
+  ) {
+    return;
+  }
+
+  virtualRange = { start, end, cols };
+  const frag = document.createDocumentFragment();
+  for (let i = start; i < end; i += 1) {
+    frag.appendChild(makeGameCard(visibleGames[i], i));
+  }
+  windowEl.replaceChildren(frag);
+}
+
+function scheduleVirtualPaint(force = false) {
+  if (force) virtualForce = true;
+  if (virtualRaf) return;
+  virtualRaf = requestAnimationFrame(() => {
+    virtualRaf = 0;
+    const shouldForce = virtualForce;
+    virtualForce = false;
+    paintVirtualGames(shouldForce);
+  });
 }
 
 function renderGames(list) {
-  const gamesPanel = document.getElementById('panel-games');
-  resetCoverObserver(gamesPanel);
   visibleGames = list;
-  gameListEl.innerHTML = '';
+  virtualRange = { start: -1, end: -1, cols: 0 };
 
   if (!list.length) {
+    gameListEl.className = 'game-grid-host';
+    gameListEl.replaceChildren();
     const empty = document.createElement('div');
     empty.className = 'game-empty';
     empty.textContent = 'No games found.';
@@ -1111,32 +1162,18 @@ function renderGames(list) {
     return;
   }
 
-  const frag = document.createDocumentFragment();
+  paintVirtualGames(true);
+}
 
-  list.forEach((game, i) => {
-    const card = document.createElement('div');
-    card.className = 'game-card' + (compressedMode ? ' compact' : '');
-    card.dataset.index = String(i);
+function filteredGames() {
+  const query = gameSearchEl.value.toLowerCase().trim();
+  if (!query) return games;
+  return games.filter((game) => game.name.toLowerCase().includes(query));
+}
 
-    if (compressedMode) {
-      const name = document.createElement('div');
-      name.className = 'game-card-name';
-      name.textContent = game.name;
-      card.appendChild(name);
-    } else {
-      const img = document.createElement('img');
-      observeCover(img, game.cover || COVER_PLACEHOLDER, gamesPanel);
-      card.appendChild(img);
-      const name = document.createElement('div');
-      name.className = 'game-card-name';
-      name.textContent = game.name;
-      card.appendChild(name);
-    }
-
-    frag.appendChild(card);
-  });
-
-  gameListEl.appendChild(frag);
+function showGamesTab() {
+  if (!gameListEl || !games.length) return;
+  renderGames(filteredGames());
 }
 
 async function openGame(game) {
@@ -1228,10 +1265,7 @@ let searchTimer = null;
 gameSearchEl.addEventListener('input', () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
-    const query = gameSearchEl.value.toLowerCase().trim();
-    renderGames(
-      games.filter((game) => game.name.toLowerCase().includes(query))
-    );
+    renderGames(filteredGames());
   }, 120);
 });
 
@@ -1239,12 +1273,28 @@ compressedBtn.addEventListener('click', () => {
   compressedMode = !compressedMode;
   localStorage.setItem('compressedMode', compressedMode);
   compressedBtn.textContent = `Compressed Mode: ${compressedMode ? 'ON' : 'OFF'}`;
-  renderGames(
-    games.filter((game) =>
-      game.name.toLowerCase().includes(gameSearchEl.value.toLowerCase().trim())
-    )
-  );
+  renderGames(filteredGames());
 });
+
+document.getElementById('panel-games').addEventListener(
+  'scroll',
+  () => scheduleVirtualPaint(false),
+  { passive: true }
+);
+
+window.addEventListener('resize', () => {
+  if (document.getElementById('panel-games').classList.contains('is-active')) {
+    paintVirtualGames(true);
+  }
+});
+
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(() => {
+    if (document.getElementById('panel-games')?.classList.contains('is-active')) {
+      scheduleVirtualPaint(true);
+    }
+  }).observe(gameListEl);
+}
 
 gameMenuButton.addEventListener('click', toggleGameMenu);
 closeGameBtn.addEventListener('click', closeGame);
