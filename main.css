@@ -112,23 +112,28 @@ body::after {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: url('DefaultWallpaper.jpeg') center / cover no-repeat;
+  background: url('DefaultWallpaper.lite.jpg') center / cover no-repeat;
   opacity: 1;
   transition: opacity var(--theme-fade) var(--ease);
 }
 
-html.is-theme-fading body::after { opacity: 0; }
+html.is-theme-fading body::after { opacity: 0; will-change: opacity; }
 
 html[data-theme="ember"] body::after {
-  background-image: url('DefaultWallpaper.jpeg');
+  background-image: url('DefaultWallpaper.lite.jpg');
 }
 
 html[data-theme="shark-blue"] body::after {
-  background-image: url('Shark-blueWallpaper.jpg');
+  background-image: url('Shark-blueWallpaper.lite.jpg');
 }
 
 html[data-theme="blank"] body::after {
-  background-image: url('DefaultWallpaper.jpeg');
+  background-image: url('DefaultWallpaper.lite.jpg');
+}
+
+html.is-lite {
+  --font-display: system-ui, sans-serif;
+  --font-body: system-ui, sans-serif;
 }
 
 body::before { display: none; }
@@ -166,6 +171,7 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  content-visibility: hidden;
 }
 
 .loading-frame {
@@ -310,12 +316,13 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
   place-items: center;
   border-radius: var(--r);
   color: var(--text-low);
-  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 
-.rail-btn svg { width: 18px; height: 18px; }
-.rail-btn:hover { color: var(--text-hi); background: var(--border); }
-.rail-btn:active { background: var(--accent-dim); }
+.rail-btn svg { width: 18px; height: 18px; transition: transform var(--dur) var(--ease); }
+.rail-btn:hover { color: var(--text-hi); background: var(--border); transform: scale(1.06); }
+.rail-btn:hover svg { transform: scale(1.08); }
+.rail-btn:active { transform: scale(0.96); }
 
 .rail-btn.is-active {
   color: var(--accent);
@@ -366,6 +373,7 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
   background: transparent;
   border-radius: var(--r-lg);
   overflow: hidden;
+  contain: layout;
 }
 
 .panel {
@@ -376,10 +384,18 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 200ms var(--ease), visibility 200ms var(--ease);
+  transform: translateY(10px);
+  transition: opacity 360ms var(--ease), transform 360ms var(--ease), visibility 360ms var(--ease);
 }
 
-.panel.is-active { opacity: 1; visibility: visible; pointer-events: auto; }
+.panel:not(.is-active) { content-visibility: hidden; }
+
+.panel.is-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+}
 
 .panel-inner {
   max-width: 820px;
@@ -434,10 +450,10 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
   border: 1px solid var(--border);
   border-radius: var(--r);
   text-align: left;
-  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 
-.jump-card:hover { border-color: var(--border-hi); background: var(--bg-hover); }
+.jump-card:hover { border-color: var(--border-hi); background: var(--bg-hover); transform: translateY(-3px); }
 .jump-card svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--accent); }
 
 .jump-card h3 {
@@ -508,11 +524,11 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
   gap: 12px;
   padding: 9px 10px;
   border-radius: var(--r);
-  transition: background var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
   position: relative;
 }
 
-.track-row:hover { background: var(--bg-hover); }
+.track-row:hover { background: var(--bg-hover); transform: translateX(4px); }
 .track-row.is-playing { background: var(--accent-dim); }
 
 .track-index {
@@ -616,11 +632,11 @@ html.is-audio-playing .track-row.is-playing .track-play-icon .icon-pause { displ
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-mid);
-  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 
-.pill-btn:hover { border-color: var(--border-strong); color: var(--text-hi); }
-.pill-btn:active { background: var(--bg-hover); }
+.pill-btn:hover { border-color: var(--border-strong); color: var(--text-hi); transform: translateY(-1px); }
+.pill-btn:active { transform: scale(0.97); }
 .pill-btn.is-solid { background: var(--accent-grad); color: #fff; border: none; }
 .pill-btn.is-active { color: var(--accent); border-color: var(--border-hi); background: var(--accent-dim); }
 
@@ -662,10 +678,10 @@ html.is-audio-playing .track-row.is-playing .track-play-icon .icon-pause { displ
   border: 1px solid var(--border);
   border-radius: var(--r);
   margin-bottom: 4px;
-  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
-.setting-row:hover { background: var(--bg-hover); }
+.setting-row:hover { background: var(--bg-hover); transform: translateX(2px); }
 .setting-label { font-size: 0.82rem; font-weight: 500; margin-bottom: 2px; }
 .setting-desc  { font-size: 0.72rem; color: var(--text-mid); }
 
@@ -829,10 +845,10 @@ html.is-audio-playing .track-row.is-playing .track-play-icon .icon-pause { displ
   place-items: center;
   border-radius: var(--r);
   color: var(--text-low);
-  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 
-.ctrl-btn:hover { color: var(--text-hi); background: var(--border); }
+.ctrl-btn:hover { color: var(--text-hi); background: var(--border); transform: scale(1.06); }
 .ctrl-btn.is-active { color: var(--accent); }
 
 .ctrl-play {
@@ -968,7 +984,7 @@ html.is-audio-playing .track-row.is-playing .track-play-icon .icon-pause { displ
 
 .game-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 8px;
 }
 
@@ -980,6 +996,7 @@ html.is-audio-playing .track-row.is-playing .track-play-icon .icon-pause { displ
 .game-grid-sizer {
   width: 100%;
   pointer-events: none;
+  contain: strict;
 }
 
 .game-grid-window {
@@ -987,6 +1004,7 @@ html.is-audio-playing .track-row.is-playing .track-play-icon .icon-pause { displ
   top: 0;
   left: 0;
   right: 0;
+  contain: layout;
 }
 
 .game-grid-window.compact,
@@ -1002,11 +1020,11 @@ html.is-audio-playing .track-row.is-playing .track-play-icon .icon-pause { displ
   border: 1px solid var(--border);
   border-radius: var(--r);
   cursor: pointer;
-  contain: content;
-  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  contain: layout;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 
-.game-card:hover { border-color: var(--border-hi); background: var(--bg-hover); }
+.game-card:hover { border-color: var(--border-hi); background: var(--bg-hover); transform: translateY(-4px); }
 
 .game-card img {
   display: block;
@@ -1015,7 +1033,11 @@ html.is-audio-playing .track-row.is-playing .track-play-icon .icon-pause { displ
   object-fit: cover;
   background: var(--border);
   border-bottom: 1px solid var(--border);
+  pointer-events: none;
+  transition: transform 420ms var(--ease);
 }
+
+.game-card:hover img { transform: scale(1.05); }
 
 .game-card-name {
   padding: 10px 12px;
@@ -1102,12 +1124,13 @@ html.is-audio-playing .track-row.is-playing .track-play-icon .icon-pause { displ
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   background: var(--bg-hover);
-  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 
 .credit-card:hover {
   border-color: var(--border-strong);
   background: rgba(255,255,255,0.03);
+  transform: translateY(-3px);
 }
 
 .credit-card--featured {

@@ -2,112 +2,49 @@
 // FireFly — app logic
 // ============================================================
 
+const isLite = /CrOS/i.test(navigator.userAgent) || navigator.connection?.saveData === true;
+if (isLite) document.documentElement.classList.add('is-lite');
+
 // ---- Loading screen -------------------------------------------
-// Cycles through "loading images/1.png", "2.png", "3.png"... The folder
-// has no manifest, so we discover the count by probing sequential
-// numbers until one fails to load. Since "numbered 1-inf" implies
-// the folder could hold a lot of images, probing is batched and
-// run in parallel rather than one-at-a-time: cycling starts as
-// soon as the first batch resolves, and the rest of the sequence
-// is discovered in the background and folded into the rotation as
-// it arrives, so a large folder never delays the first frame.
-// Call LoadingScreen.hide() once the app has real data to show;
-// it also enforces a minimum display time so the screen never
-// just flashes on a fast load.
+// Known files only. Lite devices skip the photo cycle entirely.
 const LoadingScreen = (() => {
-  const FOLDER = 'loading images';
-  const EXTENSIONS = ['jpg', 'jpeg', 'webp', 'png'];
-  const BATCH_SIZE = 8; // numbers probed in parallel per round
-  const MAX_PROBE = 20; // folder is numbered; keep this small so Chromebooks don't probe forever
-  const FADE_MS = 250; // must match .loading-img's opacity transition duration in main.css
-  const ZOOM_MS = 600; // must match .loading-img's transform transition duration in main.css
-  const HOLD_MS = 900; // how long a fully zoomed-in frame sits before the next cycle
-  const CYCLE_MS = FADE_MS + ZOOM_MS + HOLD_MS;
-  const MIN_VISIBLE_MS = 700 + Math.random() * 800; // short floor so the app doesn't sit on the splash
-  const MAX_WAIT_MS = 12000; // safety net if loadGames() ever hangs
+  const FRAMES = [
+    'loading images/1.jpg',
+    'loading images/2.jpg',
+    'loading images/3.jpg',
+    'loading images/4.jpg',
+    'loading images/5.jpg',
+    'loading images/6.jpg',
+    'loading images/7.jpg',
+    'loading images/8.jpg',
+    'loading images/9.jpg',
+    'loading images/10.webp',
+    'loading images/11.jpg',
+    'loading images/12.jpg',
+    'loading images/13.jpg',
+    'loading images/14.jpg',
+  ];
+  const FADE_MS = 250;
+  const CYCLE_MS = 1750;
+  const MIN_VISIBLE_MS = isLite ? 180 : 400;
+  const MAX_WAIT_MS = 8000;
 
   const screenEl = document.getElementById('loadingScreen');
   const imgEl = document.getElementById('loadingImg');
 
-  let frames = [];
   let cycleTimer = null;
-  let fadeTimer = null; // pending setTimeout from an in-flight showFrame() fade-out
+  let fadeTimer = null;
   let frameIndex = 0;
-  let hasShownFrame = false; // becomes true after the very first frame is applied
+  let hasShownFrame = false;
   let hidden = false;
   const startedAt = Date.now();
 
-  function probeOne(number) {
-    return new Promise((resolve) => {
-      let remaining = EXTENSIONS.length;
-      let found = null;
-      let settled = false;
-
-      EXTENSIONS.forEach((ext) => {
-        const testImg = new Image();
-        testImg.onload = () => {
-          if (!found) found = `${FOLDER}/${number}.${ext}`;
-          remaining -= 1;
-          if (remaining === 0 && !settled) { settled = true; resolve(found); }
-        };
-        testImg.onerror = () => {
-          remaining -= 1;
-          if (remaining === 0 && !settled) { settled = true; resolve(found); }
-        };
-        testImg.src = encodeURI(`${FOLDER}/${number}.${ext}`);
-      });
-    });
-  }
-
-  // Probes numbers in fixed-size parallel batches (1-6, then 7-12, ...).
-  // Within a batch, order is preserved even though requests race, since
-  // each slot's result is placed by its position, not arrival order.
-  // A batch is only accepted in full if every slot up to the first gap
-  // succeeded — the moment one slot in a batch is empty, everything
-  // from that slot onward (including later, unrelated batches) is
-  // discarded, so a gap still reliably ends the sequence rather than
-  // leaving a hole that gets skipped over.
-  // onBatch(newFrames) fires after each accepted batch so the caller
-  // can start showing images without waiting for the full folder.
-  async function discoverFrames(onBatch) {
-    const found = [];
-    let start = 1;
-    let hitGap = false;
-
-    while (!hitGap && start <= MAX_PROBE) {
-      const numbers = [];
-      for (let i = 0; i < BATCH_SIZE && start + i <= MAX_PROBE; i += 1) {
-        numbers.push(start + i);
-      }
-      const results = await Promise.all(numbers.map(probeOne));
-
-      const newlyFound = [];
-      for (const path of results) {
-        if (!path) { hitGap = true; break; }
-        newlyFound.push(path);
-      }
-
-      if (newlyFound.length) {
-        found.push(...newlyFound);
-        onBatch(newlyFound);
-      }
-      start += BATCH_SIZE;
-    }
-
-    return found;
-  }
-
   function showFrame(index) {
-    if (!frames.length) return;
+    if (!FRAMES.length || !imgEl) return;
 
     function applyFrame() {
-      imgEl.src = frames[index];
+      imgEl.src = FRAMES[index];
       imgEl.onload = () => {
-        // Force a style flush right before re-adding the class, so the
-        // browser can't coalesce this with the earlier removal even if
-        // onload resolves immediately (every frame is already preloaded
-        // by probeOne() during discovery, so there's no real network
-        // delay here to naturally separate the two states).
         void imgEl.offsetWidth;
         imgEl.classList.add('is-shown');
         hasShownFrame = true;
@@ -115,39 +52,20 @@ const LoadingScreen = (() => {
     }
 
     if (!hasShownFrame) {
-      // Cold start: transform is already at its CSS default (scale 1.02)
-      // and nothing needs to be reversed first, so the full zoom-in can
-      // play immediately once the image loads.
       applyFrame();
       return;
     }
 
-    // Every later frame reuses this same <img> element, so its transform
-    // is already sitting at the previous frame's zoomed-in value (scale
-    // 1.08) when a new cycle starts. Removing .is-shown starts a reverse
-    // transition back toward 1.02 — but if we swap the src and re-add the
-    // class right away, that reverse transition gets interrupted only a
-    // few milliseconds in and immediately reverses again, so the zoom
-    // never travels far enough to be visible; it looks like the image
-    // just sits there instead of zooming. Waiting out the full fade
-    // duration (matching main.css's opacity transition) before swapping
-    // means the image has actually faded to invisible AND settled back
-    // at scale(1.02) by the time we bring the next frame in, so every
-    // frame's zoom-in starts from a real, settled baseline — same as the
-    // first frame — instead of a value still in motion from the last one.
     imgEl.classList.remove('is-shown');
     fadeTimer = setTimeout(applyFrame, FADE_MS);
   }
 
   function startCycling() {
-    if (!frames.length || cycleTimer) return;
+    if (cycleTimer || !imgEl) return;
     frameIndex = 0;
     showFrame(frameIndex);
     cycleTimer = setInterval(() => {
-      // frames.length is read live each tick, so images discovered
-      // in later background batches join the rotation automatically.
-      if (frames.length <= 1) return;
-      frameIndex = (frameIndex + 1) % frames.length;
+      frameIndex = (frameIndex + 1) % FRAMES.length;
       showFrame(frameIndex);
     }, CYCLE_MS);
   }
@@ -160,32 +78,17 @@ const LoadingScreen = (() => {
   function hide() {
     if (hidden) return;
     hidden = true;
-    const elapsed = Date.now() - startedAt;
-    const wait = Math.max(0, MIN_VISIBLE_MS - elapsed);
+    const wait = Math.max(0, MIN_VISIBLE_MS - (Date.now() - startedAt));
     setTimeout(() => {
       stopCycling();
       screenEl.classList.add('is-hidden');
     }, wait);
   }
 
-  async function init() {
-    if (!screenEl || !imgEl) return;
-    // Absolute ceiling so a stuck network request (discovery or
-    // loadGames) can't strand the user forever. Starts counting
-    // immediately, not after discovery finishes, since discovery
-    // itself is one of the things this ceiling guards against.
+  function init() {
+    if (!screenEl) return;
     setTimeout(hide, MAX_WAIT_MS);
-
-    await discoverFrames((newFrames) => {
-      frames.push(...newFrames);
-      startCycling(); // no-op after the first successful call
-    });
-
-    if (!frames.length) {
-      // No images found under that folder/naming — don't block the app on an empty cycle.
-      console.warn(`Loading screen: no images found at "${FOLDER}/1.<ext>"`);
-      hide();
-    }
+    startCycling();
   }
 
   init();
@@ -426,7 +329,7 @@ function activateTab(tabName) {
   }
 
   if (tabName === 'games') {
-    showGamesTab();
+    requestAnimationFrame(() => showGamesTab());
   }
 }
 
@@ -922,10 +825,12 @@ defaultVolumeSlider.addEventListener('input', (e) => {
 let games = [];
 let visibleGames = [];
 let currentGame = null;
-let compressedMode = localStorage.getItem('compressedMode') === 'true';
-let virtualRange = { start: -1, end: -1, cols: 0 };
+const compressedSaved = (() => {
+  try { return localStorage.getItem('compressedMode'); } catch (e) { return null; }
+})();
+let compressedMode = compressedSaved === 'true';
+let virtualRange = { start: -1, end: -1, cols: 0, compact: null };
 let virtualRaf = 0;
-let virtualForce = false;
 
 // ============================================================
 // Init
@@ -1042,34 +947,83 @@ function uniqueGames(list) {
 }
 
 const GAME_GAP = 8;
-const GAME_MIN_W = 170;
+const GAME_MIN_W = isLite ? 210 : 190;
 const GAME_MIN_W_COMPACT = 140;
-const GAME_ROW_BUFFER = 2;
+const GAME_ROW_BUFFER = isLite ? 0 : 1;
+
+function setCoverSrc(img, src) {
+  const next = src || '';
+  if (!next) {
+    if (img.dataset.src) {
+      img.dataset.src = '';
+      img.removeAttribute('src');
+    }
+    return;
+  }
+  if (img.dataset.src === next) return;
+  img.dataset.src = next;
+  img.src = next;
+}
+
+function makeCoverImg() {
+  const img = document.createElement('img');
+  img.alt = '';
+  img.decoding = 'async';
+  return img;
+}
 
 function makeGameCard(game, index, { bindClick = false, compact = compressedMode } = {}) {
   const card = document.createElement('div');
   card.className = 'game-card' + (compact ? ' compact' : '');
   if (index >= 0) card.dataset.index = String(index);
 
+  let img = null;
   if (!compact) {
-    const img = document.createElement('img');
-    img.alt = '';
-    img.decoding = 'async';
-    img.loading = 'lazy';
-    if (game.cover) img.src = game.cover;
+    img = makeCoverImg();
     card.appendChild(img);
+    if (game.cover) setCoverSrc(img, game.cover);
   }
 
   const name = document.createElement('div');
   name.className = 'game-card-name';
   name.textContent = game.name;
   card.appendChild(name);
+  card._img = img;
+  card._name = name;
 
   if (bindClick) {
     card.addEventListener('click', () => openGame(game));
   }
 
   return card;
+}
+
+function updateGameCard(card, game, index) {
+  if (card.dataset.index === String(index) && card._game === game) return;
+
+  card.dataset.index = String(index);
+  card._game = game;
+  card.classList.toggle('compact', compressedMode);
+
+  const name = card._name || card.querySelector('.game-card-name');
+  card._name = name;
+  if (name && name.textContent !== game.name) name.textContent = game.name;
+
+  let img = card._img || card.querySelector('img');
+  if (compressedMode) {
+    if (img) {
+      img.remove();
+      card._img = null;
+    }
+    return;
+  }
+
+  if (!img) {
+    img = makeCoverImg();
+    card.insertBefore(img, name);
+  }
+  card._img = img;
+  setCoverSrc(img, game.cover || '');
 }
 
 function gameCardMetrics() {
@@ -1083,74 +1037,85 @@ function gameCardMetrics() {
   return { cols, cardH, rowStride: cardH + GAME_GAP };
 }
 
+let gridSizer = null;
+let gridWindow = null;
+const gamesPanelEl = document.getElementById('panel-games');
+
 function ensureGameGrid() {
-  if (gameListEl.querySelector('.game-grid-window')) return;
+  if (gridWindow && gameListEl.contains(gridWindow)) return;
   gameListEl.className = 'game-grid-host';
   gameListEl.replaceChildren();
-  const sizer = document.createElement('div');
-  sizer.className = 'game-grid-sizer';
-  const windowEl = document.createElement('div');
-  windowEl.className = 'game-grid game-grid-window';
-  gameListEl.append(sizer, windowEl);
+  gridSizer = document.createElement('div');
+  gridSizer.className = 'game-grid-sizer';
+  gridWindow = document.createElement('div');
+  gridWindow.className = 'game-grid game-grid-window';
+  gameListEl.append(gridSizer, gridWindow);
 }
 
-function paintVirtualGames(force = false) {
+function paintVirtualGames() {
   if (!visibleGames.length || !gameListEl) return;
 
   ensureGameGrid();
-  const panel = document.getElementById('panel-games');
-  const sizer = gameListEl.querySelector('.game-grid-sizer');
-  const windowEl = gameListEl.querySelector('.game-grid-window');
-  windowEl.classList.toggle('compact', compressedMode);
+  gridWindow.classList.toggle('compact', compressedMode);
 
   const { cols, cardH, rowStride } = gameCardMetrics();
   const total = visibleGames.length;
   const rows = Math.ceil(total / cols);
-  sizer.style.height = `${Math.max(0, rows * cardH + Math.max(0, rows - 1) * GAME_GAP)}px`;
-  windowEl.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+  const nextHeight = `${Math.max(0, rows * cardH + Math.max(0, rows - 1) * GAME_GAP)}px`;
+  if (gridSizer.style.height !== nextHeight) gridSizer.style.height = nextHeight;
+  gridWindow.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
 
-  const listRect = gameListEl.getBoundingClientRect();
-  const panelRect = panel.getBoundingClientRect();
-  const viewTop = Math.max(0, panelRect.top - listRect.top);
-  const viewBottom = Math.max(viewTop, panelRect.bottom - listRect.top);
+  const viewTop = Math.max(0, gamesPanelEl.scrollTop - gameListEl.offsetTop);
+  const viewBottom = viewTop + gamesPanelEl.clientHeight;
   const startRow = Math.max(0, Math.floor(viewTop / rowStride) - GAME_ROW_BUFFER);
   const endRow = Math.min(rows, Math.ceil(viewBottom / rowStride) + GAME_ROW_BUFFER);
   const start = startRow * cols;
   const end = Math.min(total, endRow * cols);
 
-  windowEl.style.transform = `translate3d(0, ${startRow * rowStride}px, 0)`;
+  gridWindow.style.transform = `translate3d(0, ${startRow * rowStride}px, 0)`;
 
-  if (
-    !force &&
+  const needed = end - start;
+  const sameRange =
     virtualRange.start === start &&
     virtualRange.end === end &&
-    virtualRange.cols === cols
-  ) {
-    return;
+    virtualRange.cols === cols &&
+    virtualRange.compact === compressedMode;
+
+  if (sameRange && gridWindow.childElementCount === needed) return;
+
+  virtualRange = { start, end, cols, compact: compressedMode };
+
+  while (gridWindow.childElementCount > needed) {
+    gridWindow.lastElementChild.remove();
   }
 
-  virtualRange = { start, end, cols };
-  const frag = document.createDocumentFragment();
-  for (let i = start; i < end; i += 1) {
-    frag.appendChild(makeGameCard(visibleGames[i], i));
+  for (let i = 0; i < needed; i += 1) {
+    const gameIndex = start + i;
+    const game = visibleGames[gameIndex];
+    let card = gridWindow.children[i];
+    if (!card) {
+      card = makeGameCard(game, gameIndex);
+      card._game = game;
+      gridWindow.appendChild(card);
+    } else {
+      updateGameCard(card, game, gameIndex);
+    }
   }
-  windowEl.replaceChildren(frag);
 }
 
-function scheduleVirtualPaint(force = false) {
-  if (force) virtualForce = true;
+function scheduleVirtualPaint() {
   if (virtualRaf) return;
   virtualRaf = requestAnimationFrame(() => {
     virtualRaf = 0;
-    const shouldForce = virtualForce;
-    virtualForce = false;
-    paintVirtualGames(shouldForce);
+    paintVirtualGames();
   });
 }
 
 function renderGames(list) {
   visibleGames = list;
-  virtualRange = { start: -1, end: -1, cols: 0 };
+  virtualRange = { start: -1, end: -1, cols: 0, compact: null };
+  gridSizer = null;
+  gridWindow = null;
 
   if (!list.length) {
     gameListEl.className = 'game-grid-host';
@@ -1162,7 +1127,7 @@ function renderGames(list) {
     return;
   }
 
-  paintVirtualGames(true);
+  paintVirtualGames();
 }
 
 function filteredGames() {
@@ -1172,7 +1137,22 @@ function filteredGames() {
 }
 
 function showGamesTab() {
-  if (!gameListEl || !games.length) return;
+  if (!gameListEl) return;
+  if (!games.length) {
+    if (gridWindow) return;
+    gameListEl.className = 'game-grid-host';
+    gameListEl.replaceChildren();
+    const empty = document.createElement('div');
+    empty.className = 'game-empty';
+    empty.textContent = 'Loading games…';
+    gameListEl.appendChild(empty);
+    return;
+  }
+
+  if (gridWindow && gameListEl.contains(gridWindow) && !gameSearchEl.value.trim()) {
+    scheduleVirtualPaint();
+    return;
+  }
   renderGames(filteredGames());
 }
 
@@ -1276,24 +1256,20 @@ compressedBtn.addEventListener('click', () => {
   renderGames(filteredGames());
 });
 
-document.getElementById('panel-games').addEventListener(
-  'scroll',
-  () => scheduleVirtualPaint(false),
-  { passive: true }
-);
+gamesPanelEl.addEventListener('scroll', scheduleVirtualPaint, { passive: true });
 
-window.addEventListener('resize', () => {
-  if (document.getElementById('panel-games').classList.contains('is-active')) {
-    paintVirtualGames(true);
-  }
-});
-
+let lastGridW = 0;
 if (typeof ResizeObserver !== 'undefined') {
-  new ResizeObserver(() => {
-    if (document.getElementById('panel-games')?.classList.contains('is-active')) {
-      scheduleVirtualPaint(true);
-    }
+  new ResizeObserver((entries) => {
+    const w = Math.round(entries[0].contentRect.width);
+    if (Math.abs(w - lastGridW) < 8) return;
+    lastGridW = w;
+    if (gamesPanelEl.classList.contains('is-active')) scheduleVirtualPaint();
   }).observe(gameListEl);
+} else {
+  window.addEventListener('resize', () => {
+    if (gamesPanelEl.classList.contains('is-active')) scheduleVirtualPaint();
+  });
 }
 
 gameMenuButton.addEventListener('click', toggleGameMenu);
@@ -1301,7 +1277,8 @@ closeGameBtn.addEventListener('click', closeGame);
 reloadGameBtn.addEventListener('click', reloadGame);
 openBlankBtn.addEventListener('click', openBlank);
 
-loadGames().then(() => LoadingScreen.hide());
+LoadingScreen.hide();
+loadGames();
 
 window.addEventListener("beforeunload", function (e) {
   e.preventDefault();

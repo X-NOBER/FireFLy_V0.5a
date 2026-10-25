@@ -4,9 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FireFly</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@500;600;700&display=swap" rel="stylesheet">
+<script>
+  if (/CrOS/i.test(navigator.userAgent) || (navigator.connection && navigator.connection.saveData)) {
+    document.documentElement.classList.add('is-lite');
+  } else {
+    var fontLink = document.createElement('link');
+    fontLink.rel = 'stylesheet';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@500;600;700&display=swap';
+    document.head.appendChild(fontLink);
+  }
+</script>
 <link rel="stylesheet" href="main.css">
 </head>
 <body>
