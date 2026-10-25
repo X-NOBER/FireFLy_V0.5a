@@ -1,39 +1,59 @@
-# FireFly v0.5a — Alpha Release Notes
+# FireFly V0.5a
 
-Welcome to the Alpha release of **FireFly**! Version 0.5a represents a major development milestone, establishing the core architecture, module structure, and codebase.
+A local school-use app for games and music. Static HTML, CSS, and JS — no build step.
 
----
-
-## 🚀 Overview
-
-* **Project:** FireFly
-* **Version:** Alpha 0.5a
-* **Status:** Initial Alpha Milestone
+**Status:** Alpha (`main`)
 
 ---
 
-## 📊 Key Development Metrics
+## What’s in it
 
-Here is a breakdown of the build metrics for **FireFly v0.5a**:
+* **Home** — jump cards, a few random games, recently added tracks
+* **Games** — library pulled from FROG, Xaden, and ABMINN. Search, compressed mode, virtualized grid (only visible cards are painted)
+* **Music** — catalog plus a Phonk section. Play all / shuffle. The now-playing rail shows on the right once a track starts
+* **Settings** — Red-Ember, Shark-Blue, or Blank. Autoplay and default volume
+* **Credits** — the people who built it
 
-| Metric | Quantity |
+Themes fade between wallpapers. Chromebooks skip extra webfonts and keep the games grid light.
+
+---
+
+## Run it
+
+Open the folder over HTTP (file:// will break music and some game loads):
+
+```bash
+python -m http.server 8767
+```
+
+Then go to `http://127.0.0.1:8767/`.
+
+Or use the GitHub copy:
+
+* App: `https://cdn.jsdelivr.net/gh/X-NOBER/FireFLy_V0.5a@main/index.html`
+* Launcher: [`fetchingEngine/md.html`](https://cdn.jsdelivr.net/gh/X-NOBER/FireFLy_V0.5a@main/fetchingEngine/md.html)
+
+---
+
+## Repo layout
+
+| Path | What it is |
 | :--- | :--- |
-| **Lines of Code** | `2,487` |
-| **Files** | `31` |
-| **Time Period** | `2` Months |
-| **Active Duration** | `4` Weeks |
-| **Total Build Time** | `70+` Hours |
+| `index.html` / `main.css` / `script.js` | The app |
+| `music/` | Local MP3s |
+| `loading images/` | Splash frames |
+| `fetchingEngine/` | Launchers (`md.html`, `rm.html`, `float.html`) |
+| `logo/` / `avatars/` | Branding and credits photos |
 
 ---
 
-## ✨ Release Highlights
+## Credits
 
-* **Codebase Foundation:** Added 2,487 lines of code across 31 individual files.
-* **Project Investment:** Over 70 hours of dedicated development time across 2 months.
-* **Alpha Phase:** Initial functional core ready for testing, iteration, and feedback.
+| Person | Role |
+| :--- | :--- |
+| **$h4rky** | Creator & lead developer |
+| **1Cool_Pig** | Games co-developer |
+| **X-NOBER** | Game assets / CryoFetcher v4 |
+| **ClumsyTheBudgie** | Mortal support |
 
----
-
-## 🎉 Welcome to FireFly Alpha!
-
-Thank you for following the development of **FireFly**. This release marks the beginning of the testing phase as we prepare for future feature updates and refinements in version 0.6.
+Built for school gaming and too many late nights.
